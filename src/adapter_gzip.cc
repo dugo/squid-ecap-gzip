@@ -351,7 +351,6 @@ void Adapter::Xaction::start() {
 
     /**
      * Checks the Content-Type response header.
-     * At this time, only responses with "text/html" content-type are allowed to be compressed.
      */
     static const libecap::Name contentTypeName("Content-Type");
 
@@ -362,7 +361,20 @@ void Adapter::Xaction::start() {
         const libecap::Header::Value contentType = adapted->header().value(contentTypeName);
         if(contentType.size > 0) {
             std::string contentTypeString = contentType.toString(); // expensive
-            if(strstr(contentTypeString.c_str(),"text/html")) {
+            std::string contentTypeType = contentTypeString.substr(0,4);            
+            if(strstr(contentTypeType.c_str(),"text")) {
+                 this->requirements.responseContentTypeOk = true;
+            }
+            else if(strstr(contentTypeString.c_str(),"application/xml")) {
+                this->requirements.responseContentTypeOk = true;
+            }
+            else if(strstr(contentTypeString.c_str(),"application/javascript")) {
+                this->requirements.responseContentTypeOk = true;
+            }
+            else if(strstr(contentTypeString.c_str(),"application/x-javascript")) {
+                this->requirements.responseContentTypeOk = true;
+            }
+            else if(strstr(contentTypeString.c_str(),"application/x-protobuffer")) {
                 this->requirements.responseContentTypeOk = true;
             }
         }
@@ -390,7 +402,7 @@ void Adapter::Xaction::start() {
     const libecap::Header::Value value = libecap::Area::FromTempString("VIGOS eCAP GZIP Adapter");
     adapted->header().add(name, value);
 
-    // Add "Vary: Accept-Encoding" response header if Content-Type is "text/html"
+    // Add "Vary: Accept-Encoding" response header if Content-Type is supported type
     if(requirements.responseContentTypeOk) {
         static const libecap::Name varyName("Vary");
         const libecap::Header::Value varyValue = libecap::Area::FromTempString("Accept-Encoding");
@@ -518,7 +530,7 @@ void Adapter::Xaction::noteVbContentDone(bool atEnd) {
     gzipContext->gzipBuffer[gzipContext->compressedSize++] = (char) gzipContext->originalSize & 0xff;
 
     Must(receivingVb == opOn);
-    receivingVb = opComplete;
+    stopVb();
     if (sendingAb == opOn) {
         hostx->noteAbContentDone(atEnd);
         sendingAb = opComplete;
